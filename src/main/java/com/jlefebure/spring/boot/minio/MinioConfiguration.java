@@ -16,13 +16,9 @@
 
 package com.jlefebure.spring.boot.minio;
 
-import io.minio.BucketExistsArgs;
-import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
 import io.minio.errors.*;
 import okhttp3.OkHttpClient;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -41,8 +37,6 @@ import java.security.NoSuchAlgorithmException;
 @EnableConfigurationProperties(MinioConfigurationProperties.class)
 @ComponentScan("com.jlefebure.spring.boot.minio")
 public class MinioConfiguration {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(MinioConfiguration.class);
 
     @Autowired
     private MinioConfigurationProperties minioConfigurationProperties;
@@ -69,33 +63,6 @@ public class MinioConfiguration {
                 minioConfigurationProperties.getReadTimeout().toMillis()
         );
 
-        if (minioConfigurationProperties.isCheckBucket()) {
-            try {
-                LOGGER.debug("Checking if bucket {} exists", minioConfigurationProperties.getBucket());
-                BucketExistsArgs existsArgs = BucketExistsArgs.builder()
-                        .bucket(minioConfigurationProperties.getBucket())
-                        .build();
-                boolean b = minioClient.bucketExists(existsArgs);
-                if (!b) {
-                    if (minioConfigurationProperties.isCreateBucket()) {
-                        try {
-                            MakeBucketArgs makeBucketArgs = MakeBucketArgs.builder()
-                                    .bucket(minioConfigurationProperties.getBucket())
-                                    .build();
-                            minioClient.makeBucket(makeBucketArgs);
-                        } catch (Exception e) {
-                            throw new MinioException("Cannot create bucket", e);
-                        }
-                    } else {
-                        throw new IllegalStateException("Bucket does not exist: " + minioConfigurationProperties.getBucket());
-                    }
-                }
-            } catch (Exception e) {
-                LOGGER.error("Error while checking bucket", e);
-                throw e;
-            }
-        }
-
         return minioClient;
     }
 
@@ -110,8 +77,9 @@ public class MinioConfiguration {
         String httpPort = System.getProperty("http.proxyPort");
 
         OkHttpClient.Builder builder = new OkHttpClient.Builder();
-        if (httpHost != null)
+        if (httpHost != null) {
             builder.proxy(new Proxy(Proxy.Type.HTTP, new InetSocketAddress(httpHost, Integer.parseInt(httpPort))));
+        }
         return builder
                 .build();
     }

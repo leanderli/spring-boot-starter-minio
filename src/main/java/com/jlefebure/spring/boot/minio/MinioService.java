@@ -47,12 +47,10 @@ import java.util.stream.StreamSupport;
 public class MinioService {
 
     private final MinioClient minioClient;
-    private final MinioConfigurationProperties configurationProperties;
 
     @Autowired
-    public MinioService(MinioClient minioClient, MinioConfigurationProperties configurationProperties) {
+    public MinioService(MinioClient minioClient) {
         this.minioClient = minioClient;
-        this.configurationProperties = configurationProperties;
     }
 
     /**
@@ -60,9 +58,9 @@ public class MinioService {
      *
      * @return List of items
      */
-    public List<Item> list() {
+    public List<Item> list(String bucket) {
         ListObjectsArgs args = ListObjectsArgs.builder()
-                .bucket(configurationProperties.getBucket())
+                .bucket(bucket)
                 .prefix("")
                 .recursive(false)
                 .build();
@@ -75,9 +73,9 @@ public class MinioService {
      *
      * @return List of items
      */
-    public List<Item> fullList() {
+    public List<Item> fullList(String bucket) {
         ListObjectsArgs args = ListObjectsArgs.builder()
-                .bucket(configurationProperties.getBucket())
+                .bucket(bucket)
                 .build();
         Iterable<Result<Item>> myObjects = minioClient.listObjects(args);
         return getItems(myObjects);
@@ -90,9 +88,9 @@ public class MinioService {
      * @param path Prefix of seeked list of object
      * @return List of items
      */
-    public List<Item> list(Path path) {
+    public List<Item> list(String bucket, Path path) {
         ListObjectsArgs args = ListObjectsArgs.builder()
-                .bucket(configurationProperties.getBucket())
+                .bucket(bucket)
                 .prefix(path.toString())
                 .recursive(false)
                 .build();
@@ -108,9 +106,9 @@ public class MinioService {
      * @param path Prefix of seeked list of object
      * @return List of items
      */
-    public List<Item> getFullList(Path path) {
+    public List<Item> getFullList(String bucket, Path path) {
         ListObjectsArgs args = ListObjectsArgs.builder()
-                .bucket(configurationProperties.getBucket())
+                .bucket(bucket)
                 .prefix(path.toString())
                 .build();
         Iterable<Result<Item>> myObjects = minioClient.listObjects(args);
@@ -143,10 +141,10 @@ public class MinioService {
      * @return The object as an InputStream
      * @throws com.jlefebure.spring.boot.minio.MinioException if an error occur while fetch object
      */
-    public InputStream get(Path path) throws com.jlefebure.spring.boot.minio.MinioException {
+    public InputStream get(String bucket, Path path) throws com.jlefebure.spring.boot.minio.MinioException {
         try {
             GetObjectArgs args = GetObjectArgs.builder()
-                    .bucket(configurationProperties.getBucket())
+                    .bucket(bucket)
                     .object(path.toString())
                     .build();
             return minioClient.getObject(args);
@@ -162,10 +160,10 @@ public class MinioService {
      * @return Metadata of the  object
      * @throws com.jlefebure.spring.boot.minio.MinioException if an error occur while fetching object metadatas
      */
-    public StatObjectResponse getMetadata(Path path) throws com.jlefebure.spring.boot.minio.MinioException {
+    public StatObjectResponse getMetadata(String bucket, Path path) throws com.jlefebure.spring.boot.minio.MinioException {
         try {
             StatObjectArgs args = StatObjectArgs.builder()
-                    .bucket(configurationProperties.getBucket())
+                    .bucket(bucket)
                     .object(path.toString())
                     .build();
             return minioClient.statObject(args);
@@ -180,12 +178,12 @@ public class MinioService {
      * @param paths Paths of all objects with prefix. Objects names must be included.
      * @return A map where all paths are keys and metadatas are values
      */
-    public Map<Path, StatObjectResponse> getMetadata(Iterable<Path> paths) {
+    public Map<Path, StatObjectResponse> getMetadata(String bucket, Iterable<Path> paths) {
         return StreamSupport.stream(paths.spliterator(), false)
             .map(path -> {
                 try {
                     StatObjectArgs args = StatObjectArgs.builder()
-                            .bucket(configurationProperties.getBucket())
+                            .bucket(bucket)
                             .object(path.toString())
                             .build();
                     return new HashMap.SimpleEntry<>(path, minioClient.statObject(args));
@@ -203,10 +201,10 @@ public class MinioService {
      * @param fileName Filename
      * @throws com.jlefebure.spring.boot.minio.MinioException if an error occur while fetch object
      */
-    public void getAndSave(Path source, String fileName) throws com.jlefebure.spring.boot.minio.MinioException {
+    public void getAndSave(String bucket, Path source, String fileName) throws com.jlefebure.spring.boot.minio.MinioException {
         try {
             DownloadObjectArgs args = DownloadObjectArgs.builder()
-                    .bucket(configurationProperties.getBucket())
+                    .bucket(bucket)
                     .object(source.toString())
                     .filename(fileName)
                     .build();
@@ -224,11 +222,11 @@ public class MinioService {
      * @param headers     Additional headers to put on the file. The map MUST be mutable. All custom headers will start with 'x-amz-meta-' prefix when fetched with {@code getMetadata()} method.
      * @throws com.jlefebure.spring.boot.minio.MinioException if an error occur while uploading object
      */
-    public void upload(Path source, InputStream file, Map<String, String> headers) throws
+    public void upload(String bucket, Path source, InputStream file, Map<String, String> headers) throws
         com.jlefebure.spring.boot.minio.MinioException {
         try {
             PutObjectArgs args = PutObjectArgs.builder()
-                    .bucket(configurationProperties.getBucket())
+                    .bucket(bucket)
                     .object(source.toString())
                     .stream(file, file.available(), -1)
                     .headers(headers)
@@ -246,11 +244,11 @@ public class MinioService {
      * @param file        File as an inputstream
      * @throws com.jlefebure.spring.boot.minio.MinioException if an error occur while uploading object
      */
-    public void upload(Path source, InputStream file) throws
+    public void upload(String bucket, Path source, InputStream file) throws
         com.jlefebure.spring.boot.minio.MinioException {
         try {
             PutObjectArgs args = PutObjectArgs.builder()
-                    .bucket(configurationProperties.getBucket())
+                    .bucket(bucket)
                     .object(source.toString())
                     .stream(file, file.available(), -1)
                     .build();
@@ -269,11 +267,11 @@ public class MinioService {
      * @param headers     Additional headers to put on the file. The map MUST be mutable
      * @throws com.jlefebure.spring.boot.minio.MinioException if an error occur while uploading object
      */
-    public void upload(Path source, InputStream file, String contentType, Map<String, String> headers) throws
+    public void upload(String bucket, Path source, InputStream file, String contentType, Map<String, String> headers) throws
         com.jlefebure.spring.boot.minio.MinioException {
         try {
             PutObjectArgs args = PutObjectArgs.builder()
-                    .bucket(configurationProperties.getBucket())
+                    .bucket(bucket)
                     .object(source.toString())
                     .stream(file, file.available(), -1)
                     .headers(headers)
@@ -294,11 +292,11 @@ public class MinioService {
      * @param contentType MIME type for the object
      * @throws com.jlefebure.spring.boot.minio.MinioException if an error occur while uploading object
      */
-    public void upload(Path source, InputStream file, String contentType) throws
+    public void upload(String bucket, Path source, InputStream file, String contentType) throws
         com.jlefebure.spring.boot.minio.MinioException {
         try {
             PutObjectArgs args = PutObjectArgs.builder()
-                    .bucket(configurationProperties.getBucket())
+                    .bucket(bucket)
                     .object(source.toString())
                     .stream(file, file.available(), -1)
                     .contentType(contentType)
@@ -317,11 +315,11 @@ public class MinioService {
      * @param file        File as an Filename
      * @throws com.jlefebure.spring.boot.minio.MinioException if an error occur while uploading object
      */
-    public void upload(Path source, File file) throws
+    public void upload(String bucket, Path source, File file) throws
             com.jlefebure.spring.boot.minio.MinioException {
         try {
             UploadObjectArgs args = UploadObjectArgs.builder()
-                    .bucket(configurationProperties.getBucket())
+                    .bucket(bucket)
                     .object(source.toString())
                     .filename(file.getAbsolutePath())
                     .build();
@@ -338,10 +336,10 @@ public class MinioService {
      * @param source Path with prefix to the object. Object name must be included.
      * @throws com.jlefebure.spring.boot.minio.MinioException if an error occur while removing object
      */
-    public void remove(Path source) throws com.jlefebure.spring.boot.minio.MinioException {
+    public void remove(String bucket, Path source) throws com.jlefebure.spring.boot.minio.MinioException {
         try {
             RemoveObjectArgs args = RemoveObjectArgs.builder()
-                    .bucket(configurationProperties.getBucket())
+                    .bucket(bucket)
                     .object(source.toString())
                     .build();
             minioClient.removeObject(args);
